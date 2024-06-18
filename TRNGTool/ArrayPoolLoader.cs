@@ -210,7 +210,7 @@ namespace TRNGTool
 		{
 			CheckNumBytesToRead(numBytesToRead);
 
-			if (bytes.Length % TBytes != 0)
+			if (numBytesToRead % TBytes != 0)
 			{
 				throw new TRNGToolException($"array lenth {bytes.Length} is not proportional to the size of the base random type");
 			}
