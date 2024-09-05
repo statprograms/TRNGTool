@@ -4,7 +4,7 @@ namespace TRNGTool
 {
 	static public class RandomShuffler
 	{
-		public static void ShuffleRandomly<E, T>(E[] data, RandomNumbers<T> rg)
+		public static void ShuffleRandomly<E, T>(ref E[] data, RandomNumbers<T> rg)
 		{
 			for (int i = data.Length; i > 1; --i)
 			{
@@ -15,7 +15,7 @@ namespace TRNGTool
 			}
 		}
 
-		public static void ShufflePseudoRandomly<T>(T[] data, Random rg)
+		public static void ShufflePseudoRandomly<T>(ref T[] data, Random rg)
 		{
 			for (int i = data.Length; i > 1; --i)
 			{

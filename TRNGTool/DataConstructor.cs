@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Runtime.InteropServices;
 
 namespace TRNGTool
 {
@@ -43,7 +42,6 @@ namespace TRNGTool
 		{
 			int from = indexFrom;
 			int to = indexTo;
-
 			for (int i = 0; i < numElements; i++)
 			{
 				arrayTo[to++] = BitConverter.ToUInt16(arrayFrom, from);
@@ -58,7 +56,6 @@ namespace TRNGTool
 		{
 			int from = indexFrom;
 			int to = indexTo;
-
 			for (int i = 0; i < numElements; i++)
 			{
 				arrayTo[to++] = BitConverter.ToUInt32(arrayFrom, from);
