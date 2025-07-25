@@ -21,7 +21,7 @@ namespace TRNGTool
 		abstract protected uint RandomTypeMaxValue { get; }
 		abstract protected uint NextInt();
 		abstract protected uint BoundedRand(uint range);
-		protected readonly System.Threading.Lock _dataPoolLock = new();
+		protected readonly System.Threading.Lock _dataLock = new();
 		abstract internal ArrayPool<T> DataPool { get; set; }
 		abstract internal ArrayPoolLoader<T, DataConstructor<T>> Loader { get; set; }
 
@@ -30,7 +30,7 @@ namespace TRNGTool
 		public virtual uint GetInt()
 		{
 			uint r;
-			lock (_dataPoolLock)
+			lock (_dataLock)
 			{
 				r = NextInt();
 				if (ReachedEnd)
@@ -44,7 +44,7 @@ namespace TRNGTool
 		public virtual uint GetInt(uint min, uint max)
 		{
 			uint r;
-			lock (_dataPoolLock)
+			lock (_dataLock)
 			{
 				Debug.Assert(min < max);
 				Debug.Assert(max - min <= RandomTypeMaxValue);
