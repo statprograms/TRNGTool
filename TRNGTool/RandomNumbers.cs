@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Threading.Tasks;
 
 namespace TRNGTool
 {
@@ -9,7 +10,7 @@ namespace TRNGTool
 	///		The return values are always uint.
 	/// 
 	///     It's supposed that you're using files containing true random numbers obtained from
-	///     TRNG services like www.random.org or https://quantumnumbers.anu.edu.au	
+	///     TRNG services like https://quantumnumbers.anu.edu.au
 	/// </summary>
 	/// <exception cref="TRNGToolException" />
 	/// <exception cref="TRNGToolIOException" />
@@ -20,6 +21,7 @@ namespace TRNGTool
 		abstract protected uint RandomTypeMaxValue { get; }
 		abstract protected uint NextInt();
 		abstract protected uint BoundedRand(uint range);
+		protected readonly System.Threading.Lock _dataPoolLock = new();
 		abstract internal ArrayPool<T> DataPool { get; set; }
 		abstract internal ArrayPoolLoader<T, DataConstructor<T>> Loader { get; set; }
 
@@ -27,18 +29,28 @@ namespace TRNGTool
 		// IRandomNumbers
 		public virtual uint GetInt()
 		{
-			uint r = NextInt();
-			if (ReachedEnd)
-				OutOfData?.Invoke(this, null);
-
+			uint r;
+			lock (_dataPoolLock)
+			{
+				r = NextInt();
+				if (ReachedEnd)
+				{
+					OutOfData?.Invoke(this, null);
+				}
+			}
 			return r;
 		}
 
 		public virtual uint GetInt(uint min, uint max)
 		{
-			Debug.Assert(min < max);
-			Debug.Assert(max - min <= RandomTypeMaxValue);
-			return min + BoundedRand(max - min);
+			uint r;
+			lock (_dataPoolLock)
+			{
+				Debug.Assert(min < max);
+				Debug.Assert(max - min <= RandomTypeMaxValue);
+				r = min + BoundedRand(max - min);
+			}
+			return r;
 		}
 
 		/// <summary>Raised before returning from GetInt() method when there is no more data left in the buffer</summary>
