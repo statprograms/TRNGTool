@@ -31,7 +31,7 @@ namespace TRNGTool
 
 		public ArrayPool()
 		{
-			MaxArraySize = 35 * oneMb;
+			MaxArraySize = 256 * oneMb;
 			_dataPool = new();
 			ClearInit();
 		}
@@ -144,15 +144,15 @@ namespace TRNGTool
 			while (addLeft > 0)
 			{
 				T[] buffer = AddArray(addLeft);
-				Array.Copy(data, fromIdx, buffer, 0, buffer.Length);
+				Buffer.BlockCopy(data, 0, buffer, fromIdx * TBytes, buffer.Length * TBytes);
 				fromIdx += buffer.Length;
 				addLeft -= buffer.Length;
 			}
 
 			_freeSize += data.Length;
 		}
-
 		private T[] AddArray(int addLeft)
+
 		{
 			int size = GetAllocateSize(addLeft);
 			var buffer = new T[size];
