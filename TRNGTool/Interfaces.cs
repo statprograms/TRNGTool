@@ -11,14 +11,12 @@
 
 	public interface ILoadable
 	{
-		public void AddFromPath(string directoryPath, string searchPattern, long numBytesToRead);
-		/// <returns>Number of added bytes</returns>
+		public long AddFromPath(string directoryPath, string searchPattern, long numBytesToRead);
 		public long AddFromPath(string directoryPath, string searchPattern);
-		public void AddFromFile(string filePath, long numBytesToRead);
-		/// <returns>Number of added bytes</returns>
+		public long AddFromFile(string filePath, long numBytesToRead);
 		public long AddFromFile(string filePath);
-		public void AddFromBytes(byte[] bytes, int indexFrom, int numBytesToRead);
-		public void AddFromBytes(byte[] bytes);
+		public long AddFromBytes(byte[] bytes, int indexFrom, int numBytesToRead);
+		public long AddFromBytes(byte[] bytes);
 	}
 
 	public interface IArrayPool<T>

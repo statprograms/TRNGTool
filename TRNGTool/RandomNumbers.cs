@@ -21,16 +21,25 @@ namespace TRNGTool
 		abstract protected uint NextInt();
 		abstract protected uint BoundedRand(uint range);
 		abstract internal ArrayPool<T> DataPool { get; set; }
-		abstract internal ArrayPoolLoader<T, DataConstructor<T>> Loader { get; set; }
+		abstract internal ArrayPoolLoader<T> Loader { get; set; }
 
+		protected object _syncRoot = new object();
 
 		// IRandomNumbers
 		public virtual uint GetInt()
 		{
-			uint r = NextInt();
-			if (ReachedEnd)
-				OutOfData?.Invoke(this, null);
+			uint r;
+			bool finished;
+			lock (_syncRoot)
+			{
+				r = NextInt();
+				finished = DataPool.ReachedEnd;
+			}
 
+			if (finished)
+			{
+				OutOfData?.Invoke(this, null);
+			}
 			return r;
 		}
 
@@ -47,7 +56,7 @@ namespace TRNGTool
 		protected RandomNumbers()
 		{
 			DataPool = new ArrayPool<T>();
-			Loader = new ArrayPoolLoader<T, DataConstructor<T>>(DataPool);
+			Loader = new ArrayPoolLoader<T>(DataPool, _syncRoot);
 		}
 
 		static RandomNumbers<T> CreateObj()
@@ -122,40 +131,43 @@ namespace TRNGTool
 		public object Clone()
 		{
 			var newObj = (RandomNumbers<T>)this.MemberwiseClone();
+
+			newObj._syncRoot = new object();
 			newObj.DataPool = (ArrayPool<T>)this.DataPool.Clone();
+			newObj.Loader = new ArrayPoolLoader<T>(newObj.DataPool, newObj._syncRoot);
+
 			return newObj;
 		}
 
-
 		// IArrayPool
-		public T Get() => DataPool.Get();
-		public void Clear() => DataPool.Clear();
-		public bool ReachedEnd => DataPool.ReachedEnd;
-		public double Usage => DataPool.Usage;
-		public long OverallSize => DataPool.OverallSize;
-		public long OverallSizeBytes => DataPool.OverallSizeBytes;
-		public long AvailableSize => DataPool.AvailableSize;
-		public long AvailableSizeBytes => DataPool.AvailableSizeBytes;
-		public int MaxArraySize { get => DataPool.MaxArraySize; set => DataPool.MaxArraySize = value; }
+		public T Get() { lock (_syncRoot) return DataPool.Get(); }
+		public void Clear() { lock (_syncRoot) DataPool.Clear(); }
+		public bool ReachedEnd { get { lock (_syncRoot) return DataPool.ReachedEnd; } }
 
+		public double Usage { get { lock (_syncRoot) return DataPool.Usage; } }
+		public long OverallSize { get { lock (_syncRoot) return DataPool.OverallSize; } }
+		public long OverallSizeBytes { get { lock (_syncRoot) return DataPool.OverallSizeBytes; } }
+		public long AvailableSize { get { lock (_syncRoot) return DataPool.AvailableSize; } }
+		public long AvailableSizeBytes { get { lock (_syncRoot) return DataPool.AvailableSizeBytes; } }
+		public int MaxArraySize { get { lock (_syncRoot) return DataPool.MaxArraySize; } set { lock (_syncRoot) DataPool.MaxArraySize = value; } }
 
 		// ILoadable
-		public void AddFromPath(string directoryPath, string searchPattern, long numBytesToRead)
+		public long AddFromPath(string directoryPath, string searchPattern, long numBytesToRead)
 			=> Loader.AddFromPath(directoryPath, searchPattern, numBytesToRead);
 
 		public long AddFromPath(string directoryPath, string searchPattern)
 			=> Loader.AddFromPath(directoryPath, searchPattern);
 
-		public void AddFromFile(string filePath, long numBytesToRead)
+		public long AddFromFile(string filePath, long numBytesToRead)
 			=> Loader.AddFromFile(filePath, numBytesToRead);
 
 		public long AddFromFile(string filePath)
 			=> Loader.AddFromFile(filePath);
 
-		public void AddFromBytes(byte[] bytes, int indexFrom, int numBytesToRead)
+		public long AddFromBytes(byte[] bytes, int indexFrom, int numBytesToRead)
 			=> Loader.AddFromBytes(bytes, indexFrom, numBytesToRead);
 
-		public void AddFromBytes(byte[] bytes)
+		public long AddFromBytes(byte[] bytes)
 			=> Loader.AddFromBytes(bytes);
 	}
 
@@ -197,7 +209,7 @@ namespace TRNGTool
 		}
 
 		internal override ArrayPool<UInt32> DataPool { get; set; }
-		internal override ArrayPoolLoader<UInt32, DataConstructor<UInt32>> Loader { get; set; }
+		internal override ArrayPoolLoader<UInt32> Loader { get; set; }
 		protected override uint RandomTypeMaxValue => UInt32.MaxValue;
 		protected override uint NextInt() => DataPool.Get();
 	}
@@ -236,7 +248,7 @@ namespace TRNGTool
 		}
 
 		internal override ArrayPool<UInt16> DataPool { get; set; }
-		internal override ArrayPoolLoader<UInt16, DataConstructor<UInt16>> Loader { get; set; }
+		internal override ArrayPoolLoader<UInt16> Loader { get; set; }
 		protected override uint RandomTypeMaxValue => UInt16.MaxValue;
 		protected override uint NextInt() => DataPool.Get();
 	}
@@ -275,7 +287,7 @@ namespace TRNGTool
 		}
 
 		internal override ArrayPool<byte> DataPool { get; set; }
-		internal override ArrayPoolLoader<byte, DataConstructor<byte>> Loader { get; set; }
+		internal override ArrayPoolLoader<byte> Loader { get; set; }
 		protected override uint RandomTypeMaxValue => byte.MaxValue;
 		protected override uint NextInt() => DataPool.Get();
 	}

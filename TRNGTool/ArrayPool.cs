@@ -46,7 +46,6 @@ namespace TRNGTool
 			_reachedEnd = true;
 		}
 
-
 		// ICloneable
 		public object Clone()
 		{
@@ -58,15 +57,21 @@ namespace TRNGTool
 				newObj._dataPool.AddLast((T[])arr.Clone());
 			}
 
+			newObj._currentArray = newObj._dataPool.First;
+			newObj._currentArrayReadIndex = -1;
+			newObj._deletedSize = 0;
+
+			newObj._freeSize = newObj.OverallSize - newObj.CurrentArraySize;
+			newObj._reachedEnd = (newObj._currentArray == null);
+
 			return newObj;
 		}
-
 
 		// IArrayPool
 		public bool ReachedEnd => _reachedEnd;
 		public long OverallSize => _freeSize + _deletedSize + CurrentArraySize;
 		public long OverallSizeBytes => OverallSize * TBytes;
-		public long AvailableSize => ReachedEnd ? 0 : _freeSize + CurrentArraySize - _currentArrayReadIndex;
+		public long AvailableSize => ReachedEnd ? 0 : _freeSize + CurrentArraySize - (_currentArrayReadIndex + 1);
 		public long AvailableSizeBytes => AvailableSize * TBytes;
 		public void Clear() => ClearInit();
 		private long CurrentArraySize => _currentArray?.Value.Length ?? 0;
@@ -101,7 +106,7 @@ namespace TRNGTool
 					return 1;
 				}
 
-				long used = _deletedSize + _currentArrayReadIndex;
+				long used = _deletedSize + _currentArrayReadIndex + 1;
 				return (double)used / OverallSize;
 			}
 		}
@@ -148,8 +153,6 @@ namespace TRNGTool
 				fromIdx += buffer.Length;
 				addLeft -= buffer.Length;
 			}
-
-			_freeSize += data.Length;
 		}
 
 		private T[] AddArray(int addLeft)
@@ -164,6 +167,10 @@ namespace TRNGTool
 			{
 				// this is the first array, or adding after the out of data state (_currentArray == null)
 				_currentArray = _dataPool.Last;
+			}
+			else
+			{
+				_freeSize += size;
 			}
 
 			return buffer;
