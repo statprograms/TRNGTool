@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Threading.Tasks;
 
 namespace TRNGTool
 {
@@ -17,6 +18,10 @@ namespace TRNGTool
 	public abstract class RandomNumbers<T> : IRandomNumbers<uint>, IArrayPool<T>, ILoadable, ICloneable
 	{
 		public Type RandomType => typeof(T);
+
+		/// <summary>Maximum time to wait for data to be loaded before throwing an exception</summary>
+		public TimeSpan LoadTimeout { get; set; } = TimeSpan.FromSeconds(30);
+
 		abstract protected uint RandomTypeMaxValue { get; }
 		abstract protected uint NextInt();
 		abstract protected uint BoundedRand(uint range);
@@ -25,22 +30,58 @@ namespace TRNGTool
 
 		protected object _syncRoot = new object();
 
+		private TaskCompletionSource<bool> _refillTcs;
+
 		// IRandomNumbers
 		public virtual uint GetInt()
 		{
-			uint r;
-			bool finished;
+			Task waitTask = null;
+
 			lock (_syncRoot)
 			{
-				r = NextInt();
-				finished = DataPool.ReachedEnd;
+				if (DataPool.ReachedEnd)
+				{
+					// no one is currently refilling
+					if (_refillTcs == null)
+					{
+						_refillTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+						try
+						{
+							OutOfData?.Invoke(this, EventArgs.Empty);
+						}
+						catch (Exception ex)
+						{
+							_refillTcs.TrySetException(ex);
+							_refillTcs = null;
+							throw;
+						}
+					}
+
+					if (_refillTcs != null)
+					{
+						waitTask = _refillTcs.Task;
+					}
+				}
 			}
 
-			if (finished)
+			if (waitTask != null)
 			{
-				OutOfData?.Invoke(this, null);
+				if (!waitTask.Wait(LoadTimeout))
+				{
+					throw new TRNGToolOutOfDataException($"Timeout waiting {LoadTimeout.TotalSeconds}s for refill.");
+				}
 			}
-			return r;
+
+			lock (_syncRoot)
+			{
+				if (DataPool.ReachedEnd)
+				{
+					throw new TRNGToolOutOfDataException("Refill event finished but no data added.");
+				}
+
+				return NextInt();
+			}
 		}
 
 		public virtual uint GetInt(uint min, uint max)
@@ -56,7 +97,16 @@ namespace TRNGTool
 		protected RandomNumbers()
 		{
 			DataPool = new ArrayPool<T>();
-			Loader = new ArrayPoolLoader<T>(DataPool, _syncRoot);
+			Loader = new ArrayPoolLoader<T>(DataPool, _syncRoot, this);
+		}
+
+		internal void NotifyDataLoaded()
+		{
+			if (_refillTcs != null)
+			{
+				_refillTcs.TrySetResult(true);
+				_refillTcs = null;
+			}
 		}
 
 		static RandomNumbers<T> CreateObj()
@@ -134,7 +184,8 @@ namespace TRNGTool
 
 			newObj._syncRoot = new object();
 			newObj.DataPool = (ArrayPool<T>)this.DataPool.Clone();
-			newObj.Loader = new ArrayPoolLoader<T>(newObj.DataPool, newObj._syncRoot);
+			newObj._refillTcs = null;
+			newObj.Loader = new ArrayPoolLoader<T>(newObj.DataPool, newObj._syncRoot, newObj);
 
 			return newObj;
 		}

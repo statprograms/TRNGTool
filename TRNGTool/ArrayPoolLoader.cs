@@ -9,11 +9,13 @@ namespace TRNGTool
 		private ArrayPool<T> _pool;
 		private static readonly int TSize = Marshal.SizeOf(typeof(T));
 		private readonly object _lock; // the lock passed from RandomNumbers
+		private readonly RandomNumbers<T> _owner;
 
-		public ArrayPoolLoader(ArrayPool<T> pool, object syncRoot)
+		public ArrayPoolLoader(ArrayPool<T> pool, object syncRoot, RandomNumbers<T> owner)
 		{
 			_pool = pool;
 			_lock = syncRoot;
+			_owner = owner;
 		}
 
 		public long AddFromPath(string directoryPath, string searchPattern, long numBytesToRead)
@@ -89,6 +91,10 @@ namespace TRNGTool
 			return AddFromFile(filePath, fileInfo.Length);
 		}
 
+		public long AddFromBytes(byte[] bytes)
+			=>
+			AddFromBytes(bytes, 0, bytes.Length);
+
 		public long AddFromBytes(byte[] bytes, int indexFrom, int numBytesToRead)
 		{
 			if (bytes == null) throw new ArgumentNullException(nameof(bytes));
@@ -111,14 +117,11 @@ namespace TRNGTool
 			lock (_lock)
 			{
 				_pool.Add(convertedData);
+				_owner.NotifyDataLoaded();
 			}
 
 			return numBytesToRead;
 		}
-
-		public long AddFromBytes(byte[] bytes)
-			=>
-			AddFromBytes(bytes, 0, bytes.Length);
 
 		private static FileInfo GetFileInfo(string filePath)
 		{
