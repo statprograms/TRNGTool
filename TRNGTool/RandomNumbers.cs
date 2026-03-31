@@ -176,6 +176,26 @@ namespace TRNGTool
 			return CreateObj();
 		}
 
+		/// <summary>Sets the maximum wait time for a data refill.</summary>
+		public RandomNumbers<T> WithTimeout(TimeSpan timeout)
+		{
+			this.LoadTimeout = timeout;
+			return this;
+		}
+
+		/// <summary>Sets the internal buffer segment size (aligned to T size).</summary>
+		public RandomNumbers<T> WithMaxArraySize(int bytes)
+		{
+			this.MaxArraySize = bytes;
+			return this;
+		}
+
+		/// <summary>Subscribes an event handler to be called when the pool runs out of data.</summary>
+		public RandomNumbers<T> OnOutOfData(EventHandler<EventArgs> handler)
+		{
+			this.OutOfData += handler;
+			return this;
+		}
 
 		// ICloneable
 		public object Clone()
@@ -200,7 +220,11 @@ namespace TRNGTool
 		public long OverallSizeBytes { get { lock (_syncRoot) return DataPool.OverallSizeBytes; } }
 		public long AvailableSize { get { lock (_syncRoot) return DataPool.AvailableSize; } }
 		public long AvailableSizeBytes { get { lock (_syncRoot) return DataPool.AvailableSizeBytes; } }
-		public int MaxArraySize { get { lock (_syncRoot) return DataPool.MaxArraySize; } set { lock (_syncRoot) DataPool.MaxArraySize = value; } }
+		public int MaxArraySize
+		{
+			get { lock (_syncRoot) return DataPool.MaxArraySize; }
+			set { lock (_syncRoot) DataPool.MaxArraySize = value; }
+		}
 
 		// ILoadable
 		public long AddFromPath(string directoryPath, string searchPattern, long numBytesToRead)
